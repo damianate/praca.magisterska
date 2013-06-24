@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <script src="js/jquery-1.9.1.min.js"></script>
+    </head>
+    <body>
+
+        <button type="button" name="btnCapture" id="btnCapture">Start my camera</button><br />
+        live<video autoplay="true" id="video" style="height:240px;width:320px"></video>
+        <canvas id="canvas" style="display: none; height:240px;width:320px"></canvas><br />
+        html<img id="capturedImage" src=" " style="height:240px;width:320px">
+        websocket<img id="my-image" src=" " styale="height:240px;width:320px">
+        <input type="hidden" id="hdnImageBase64" name="hdnImageBase64"><br />
+
+        <script>
+                    var ws = new WebSocket("ws://localhost:8080/grizzly-websockets-chat/chat");
+                    ws.onopen = function(){
+                        console.log("polaczylo");
+                        //ws.send("start");
+                    }
+                    ws.onmessage = function(e){
+                        console.log("odbieram");
+                        //document.getElementById('my-image').setAttribute('src', e.data);
+                        
+                         var target = document.getElementById("my-image");
+        url=window.webkitURL.createObjectURL(e.data);
+ 
+        target.onload = function() {
+            window.webkitURL.revokeObjectURL(url);
+        };
+        target.src = url;
+                    }
+                      ws.onmessage = function(evt) { console.log("message: " + evt.data);};  
+        </script>
+
+        <script>
+        var video = document.getElementById("video");
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var localMediaStream = null;
+        var capturedImage = document.getElementById("capturedImage");
+        var buttonTextCapturePicture = "Zdjęcie!";
+
+        function onFailSoHard(e) {
+            if (e.code == 1) {
+                alert("Something went wrong! Either your webcam is not connected or you denied access to it.");
+            } else {
+                alert("getUserMedia() not supported in your browser. Try using latest version of Google Chrome or Opera.");
+            }
+        }
+
+        function snapshot() {
+            if (localMediaStream) {
+
+                    ctx.drawImage(video, 0, 0);
+                    capturedImage.src = canvas.toDataURL("image/png");
+//                    console.log();
+                     ws.send(dataURItoBlob(capturedImage.src));
+                    document.getElementById("hdnImageBase64").value = canvas.toDataURL("image/png");
+                    
+            }
+        }
+
+        video.addEventListener("click", snapshot, false);
+
+        function sizeCanvas() {
+            setTimeout( function() {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                capturedImage.height = video.videoHeight;
+                capturedImage.width = video.videoWidth;
+            }, 50);
+        }
+
+        var button = document.getElementById("btnCapture");
+        button.addEventListener("click", function(e) {
+            if (localMediaStream) {
+                snapshot();
+                return;
+            }
+            if (navigator.getUserMedia) {
+                navigator.getUserMedia("video", function(stream) {
+                    video.src = stream;
+                    localMediaStream = stream;
+                    sizeCanvas();
+                    button.textContent = buttonTextCapturePicture;
+                }, onFailSoHard);
+            } else if (navigator.webkitGetUserMedia) {
+                navigator.webkitGetUserMedia({"video" : true}, function(stream) {
+                    video.src = window.webkitURL.createObjectURL(stream);
+                    localMediaStream = stream;
+                    sizeCanvas();
+                    button.textContent = buttonTextCapturePicture;
+                }, onFailSoHard);
+            } else {
+                onFailSoHard({
+                    target : video
+                });
+            }
+        }, false);
+        
+        function dataURItoBlob(dataURI) {
+            var binary = atob(dataURI.split(',')[1]);
+            var array = [];
+            for(var i = 0; i < binary.length; i++) {
+                array.push(binary.charCodeAt(i));
+            }
+            return new Blob([new Uint8Array(array)], {type: 'image/jpeg'});
+        }
+
+        </script>
+    </body>
+</html>
